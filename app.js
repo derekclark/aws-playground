@@ -2,14 +2,70 @@
 var express  = require('express');
 var app      = express();
 var aws      = require('aws-sdk');
-var queueUrl = "";
-var receipt  = "";
+var queueUrl = "https://sqs.eu-west-1.amazonaws.com/782879011243/MyFirstQueue";
+var receipt  = "AQEBle8lwqo13gT7uM/NDxWAmddOQU5UpfkALtQzTGcXNErVk55JjmJiwgK1dlSB6Qs8HhUUXGZ5Ly0qaYO+XZBcsBsTb/kvyKY6cyOjg8OhL/ghhxSixULLlCy2oaXA2NJKbdIef3uxfuzMUr3ygQok1jvknRALS1kk20HG6+l0LIHLhuvO0YSgMIU2edfFKfc3YF57tldpcQ97/3zqD0dz+EBAqyDDIsVJMTPlFDbhjM7LMbuQ2s0jeBrKzHZunMKElHcheo0jwy76MV7D3JQr+QBRZD4sZ2J7uIJu/9G11Ub3dQfOf5zTz4//CFl0LsYuRuykTjl3WByDsufhCBE1EckT2eiDg3Y0vZjF59oIwv+vIO5Jm/NTVLrAE+OLm8sA";
     
 // Load your AWS credentials and try to instantiate the object.
 aws.config.loadFromPath(__dirname + '/config.json');
 
 // Instantiate SQS.
 var sqs = new aws.SQS();
+var sns = new aws.SNS();
+
+// Send to SQS with message attributes
+app.get('/sendWithMessageAttributes', function (req, res) {
+    var params = {
+       MessageBody: 'STRING_VALUE', /* required */
+       QueueUrl: queueUrl, /* required */
+       DelaySeconds: 0,
+       MessageAttributes: {
+         someKey: {
+           DataType: 'String', /* required */
+           StringValue: 'STRING_VALUE'
+         }
+       }
+    };
+
+    sqs.sendMessage(params, function(err, data) {
+        if(err) {
+            res.send(err);
+        } 
+        else {
+            res.send(data);
+        } 
+    });
+});
+
+// Creating a sns topic.
+app.get('/createSNS', function (req, res) {
+    var params = {
+        Name: "MyTopic2"
+    };
+    
+    sns.createTopic(params, function(err, data) {
+        if(err) {
+            res.send(err);
+        } 
+        else {
+            res.send(data);
+        } 
+    });
+});
+
+// list sns topics.
+app.get('/listSNSTopics', function (req, res) {
+    var params = {
+    };
+    
+    sns.listTopics(params, function(err, data) {
+        if(err) {
+            res.send(err);
+        } 
+        else {
+            res.send(data);
+        } 
+    });
+});
 
 // Creating a queue.
 app.get('/create', function (req, res) {
@@ -113,6 +169,45 @@ app.get('/purge', function (req, res) {
         } 
     });
 });
+
+// Publish message to SNS
+app.get('/publishSNS', function (req, res) {
+  var params = {
+    Message: 'This is the email body. This is line 1.', /* required */
+    MessageAttributes: {
+      someKey: {
+        DataType: 'String', /* required */
+/*
+        BinaryValue: new Buffer('...') || 'STRING_VALUE',
+*/
+        StringValue: 'my String Value'
+      },
+      /* anotherKey: ... */
+      anotherKey: {
+        DataType: 'String', /* required */
+/*
+        BinaryValue: new Buffer('...') || 'STRING_VALUE',
+*/
+        StringValue: 'my String Value2'
+      }
+    },
+    MessageStructure: 'STRING_VALUE',
+    Subject: 'My subject',
+/*    TargetArn:'', either specify targetArn or TopicArn but not both*/
+    TopicArn: 'arn:aws:sns:eu-west-1:782879011243:MyTopic'
+  };
+    
+    sns.publish(params, function(err, data) {
+        if(err) {
+            res.send(err);
+        } 
+        else {
+            res.send(data);
+        } 
+    });
+});
+
+
 
 // Start server.
 var server = app.listen(80, function () {
