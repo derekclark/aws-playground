@@ -15,13 +15,13 @@ var sns = new aws.SNS();
 // Send to SQS with message attributes
 app.get('/sendWithMessageAttributes', function (req, res) {
     var params = {
-       MessageBody: 'STRING_VALUE', /* required */
+       MessageBody: 'locations/v5/glid/TPLN00000012133', /* required */
        QueueUrl: queueUrl, /* required */
        DelaySeconds: 0,
        MessageAttributes: {
-         someKey: {
-           DataType: 'String', /* required */
-           StringValue: 'STRING_VALUE'
+         retryCount: {
+           DataType: 'Number', /* required */
+           StringValue: '1'
          }
        }
     };
