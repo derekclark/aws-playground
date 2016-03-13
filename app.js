@@ -3,7 +3,6 @@ var express  = require('express');
 var app      = express();
 var aws      = require('aws-sdk');
 var queueUrl = "https://sqs.eu-west-1.amazonaws.com/782879011243/MyFirstQueue";
-var receipt  = "AQEBle8lwqo13gT7uM/NDxWAmddOQU5UpfkALtQzTGcXNErVk55JjmJiwgK1dlSB6Qs8HhUUXGZ5Ly0qaYO+XZBcsBsTb/kvyKY6cyOjg8OhL/ghhxSixULLlCy2oaXA2NJKbdIef3uxfuzMUr3ygQok1jvknRALS1kk20HG6+l0LIHLhuvO0YSgMIU2edfFKfc3YF57tldpcQ97/3zqD0dz+EBAqyDDIsVJMTPlFDbhjM7LMbuQ2s0jeBrKzHZunMKElHcheo0jwy76MV7D3JQr+QBRZD4sZ2J7uIJu/9G11Ub3dQfOf5zTz4//CFl0LsYuRuykTjl3WByDsufhCBE1EckT2eiDg3Y0vZjF59oIwv+vIO5Jm/NTVLrAE+OLm8sA";
     
 // Load your AWS credentials and try to instantiate the object.
 aws.config.loadFromPath(__dirname + '/config.json');
@@ -11,6 +10,61 @@ aws.config.loadFromPath(__dirname + '/config.json');
 // Instantiate SQS.
 var sqs = new aws.SQS();
 var sns = new aws.SNS();
+
+function sendMessage(res){
+    var params = {
+        MessageBody: 'Hello world!',
+        QueueUrl: queueUrl,
+        DelaySeconds: 0
+    };
+
+    sqs.sendMessage(params, function(err, data) {
+        if(err) {
+            res.send(err);
+        }
+   });
+};
+
+function receive(res, callback){
+    var receiptHandle;
+    var params = {
+        QueueUrl: queueUrl,
+        VisibilityTimeout: 10 // 10 sec wait time for anyone else to process.
+    };
+
+    sqs.receiveMessage(params, function(err, data) {
+        if(err) {
+            res.send(err);
+        }
+        else {
+            receiptHandle =  data.Messages[0]["ReceiptHandle"];
+            callback(res,receiptHandle);
+        }
+    });
+};
+
+function setMessageVisibility(res,receiptHandle){
+    console.log('setting message visibility for message handle=' + receiptHandle);
+    var params = {
+       QueueUrl: queueUrl,
+       VisibilityTimeout: 100,
+       ReceiptHandle: receiptHandle
+    };
+    sqs.changeMessageVisibility(params, function(err, data) {
+        if(err) {
+            res.send(err);
+        } 
+       else {
+            res.send(data);
+	}
+    });
+};
+
+// test which creates a message, receives a message, gets its receipt handle and then sets it message visibility
+app.get('/messageTest',  function (req, res) {
+    sendMessage(res);
+    receive(res, setMessageVisibility); 
+});
 
 // Send to SQS with message attributes
 app.get('/sendWithMessageAttributes', function (req, res) {
@@ -132,10 +186,26 @@ app.get('/receive', function (req, res) {
             res.send(err);
         } 
         else {
+//          data object is already JSON
+            var receiptHandle =  data.Messages[0]["ReceiptHandle"];
+            console.log("Messages 1 ReceiptHandle:", receiptHandle);
             res.send(data);
         } 
     });
 });
+
+function getValue(c,d){
+	return 'ok';
+}
+
+function getJsonValue(jsonKey,jsonString){
+  var s = JSON.parse(jsonString, function(k,v){
+          if (k === jsonKey) { return 'hi'; }
+          return 'k';
+  });
+  console.log(s);
+  return s;
+}
 
 // Deleting a message.
 app.get('/delete', function (req, res) {
